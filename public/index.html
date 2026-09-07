@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Back-Office Employee — Demo</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #e2e5ea;
+    --text: #1a1d23;
+    --muted: #6b7280;
+    --accent: #2f6fed;
+    --accent-dark: #1f4fc4;
+    --ok: #1a8a4a;
+    --ok-bg: #e8f7ee;
+    --warn: #b5760a;
+    --warn-bg: #fff4e0;
+    --bad: #c0362c;
+    --bad-bg: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 32px 64px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 900px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .panel h2 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+  }
+  textarea {
+    width: 100%;
+    min-height: 220px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    resize: vertical;
+    background: #fbfbfc;
+  }
+  .samples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .sample-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .sample-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .primary-btn {
+    margin-top: 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .primary-btn:hover { background: var(--accent-dark); }
+  .primary-btn:disabled { background: #a9b6cf; cursor: not-allowed; }
+  .status-banner {
+    display: none;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .status-banner.show { display: block; }
+  .status-banner.ok { background: var(--ok-bg); color: var(--ok); }
+  .status-banner.error { background: var(--bad-bg); color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.ok { background: var(--ok-bg); color: var(--ok); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.bad { background: var(--bad-bg); color: var(--bad); }
+  .exceptions-list { list-style: none; margin: 0; padding: 0; }
+  .exceptions-list li {
+    background: var(--warn-bg);
+    color: #7a4d05;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .exceptions-list li.none { background: var(--ok-bg); color: var(--ok); }
+  .summary-row { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .summary-card {
+    flex: 1;
+    min-width: 140px;
+    background: #fafbfd;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .summary-card .num { font-size: 26px; font-weight: 700; }
+  .summary-card .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .totals { margin-top: 12px; text-align: right; font-size: 14px; }
+  .totals div { margin-bottom: 4px; }
+  .totals .grand { font-size: 17px; font-weight: 700; margin-top: 6px; }
+  pre.email-preview {
+    white-space: pre-wrap;
+    background: #fbfbfc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    max-height: 420px;
+    overflow-y: auto;
+  }
+  .empty-hint { color: var(--muted); font-size: 13px; }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: -2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AI Back-Office Employee — Purchase Order Desk</h1>
+  <p>Drop in a raw PO email. The AI reads it, checks stock, drafts the invoice and the reply — you only step in for the exceptions.</p>
+</header>
+
+<div class="container">
+
+  <div class="panel">
+    <h2>1. Incoming Purchase Order</h2>
+    <div class="samples" id="samples"></div>
+    <textarea id="poText" placeholder="Paste a purchase order email here, or click a sample above..."></textarea>
+    <button class="primary-btn" id="processBtn">Process Purchase Order</button>
+    <div class="status-banner" id="statusBanner"></div>
+  </div>
+
+  <div id="resultsSection" style="display:none;">
+
+    <div class="panel">
+      <h2>2. What the AI Employee Did</h2>
+      <div class="summary-row">
+        <div class="summary-card">
+          <div class="num" id="sumAuto">–</div>
+          <div class="label">line items auto-processed</div>
+        </div>
+        <div class="summary-card">
+          <div class="num" id="sumTotal">–</div>
+          <div class="label">total line items</div>
+        </div>
+        <div class="summary-card">
+          <div class="num" id="sumExceptions">–</div>
+          <div class="label">need human review</div>
+        </div>
+      </div>
+      <div id="exceptionsWrap">
+        <ul class="exceptions-list" id="exceptionsList"></ul>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <h2>3. Extracted &amp; Matched Line Items</h2>
+        <table>
+          <thead>
+            <tr><th>Item</th><th>Qty</th><th>SKU Match</th><th>Status</th></tr>
+          </thead>
+          <tbody id="lineItemsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>4. Draft Invoice</h2>
+        <table>
+          <tbody id="invoiceMeta"></tbody>
+        </table>
+        <div class="totals" id="invoiceTotals"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>5. Draft Reply Email to Customer</h2>
+      <pre class="email-preview" id="emailPreview"></pre>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+const poText = document.getElementById('poText');
+const samplesEl = document.getElementById('samples');
+const processBtn = document.getElementById('processBtn');
+const statusBanner = document.getElementById('statusBanner');
+const resultsSection = document.getElementById('resultsSection');
+
+async function loadSamples() {
+  const res = await fetch('/api/samples');
+  const samples = await res.json();
+  samples.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'sample-btn';
+    btn.textContent = s.label;
+    btn.onclick = () => { poText.value = s.text; };
+    samplesEl.appendChild(btn);
+  });
+}
+loadSamples();
+
+function showStatus(msg, type) {
+  statusBanner.textContent = msg;
+  statusBanner.className = 'status-banner show ' + type;
+}
+function hideStatus() {
+  statusBanner.className = 'status-banner';
+}
+
+function statusBadge(status) {
+  if (status === 'ok') return '<span class="badge ok">OK</span>';
+  if (status === 'insufficient_stock') return '<span class="badge warn">Low stock</span>';
+  return '<span class="badge bad">Needs review</span>';
+}
+
+processBtn.addEventListener('click', async () => {
+  const text = poText.value.trim();
+  if (!text) {
+    showStatus('Paste or select a purchase order first.', 'error');
+    return;
+  }
+  hideStatus();
+  processBtn.disabled = true;
+  processBtn.innerHTML = '<span class="spinner"></span>Processing...';
+  resultsSection.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/process-po', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to process PO.');
+    }
+    renderResults(data);
+    showStatus('Purchase order processed.', 'ok');
+  } catch (err) {
+    showStatus(err.message, 'error');
+  } finally {
+    processBtn.disabled = false;
+    processBtn.textContent = 'Process Purchase Order';
+  }
+});
+
+function renderResults(data) {
+  resultsSection.style.display = 'block';
+
+  document.getElementById('sumAuto').textContent = data.autoProcessedCount;
+  document.getElementById('sumTotal').textContent = data.totalLineCount;
+  document.getElementById('sumExceptions').textContent = data.exceptions.length;
+
+  const excList = document.getElementById('exceptionsList');
+  excList.innerHTML = '';
+  if (data.exceptions.length === 0) {
+    excList.innerHTML = '<li class="none">No exceptions — this order can go straight through.</li>';
+  } else {
+    data.exceptions.forEach(e => {
+      const li = document.createElement('li');
+      li.textContent = e.message;
+      excList.appendChild(li);
+    });
+  }
+
+  const body = document.getElementById('lineItemsBody');
+  body.innerHTML = '';
+  data.invoice.lines.forEach(l => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(l.description)}</strong><br><span style="color:var(--muted);font-size:12px">${escapeHtml(l.rawText)}</span></td>
+      <td>${l.quantity} ${escapeHtml(l.unit)}</td>
+      <td>${l.matchedSku ? escapeHtml(l.matchedSku) : '<span style="color:var(--muted)">none</span>'}</td>
+      <td>${statusBadge(l.status)}</td>
+    `;
+    body.appendChild(tr);
+  });
+
+  const meta = document.getElementById('invoiceMeta');
+  meta.innerHTML = `
+    <tr><th>Invoice #</th><td>${escapeHtml(data.invoice.invoiceNumber)}</td></tr>
+    <tr><th>PO #</th><td>${escapeHtml(data.invoice.poNumber)}</td></tr>
+    <tr><th>Customer</th><td>${escapeHtml(data.invoice.customer.name)}</td></tr>
+    <tr><th>Email</th><td>${escapeHtml(data.invoice.customer.email || '(not found)')}</td></tr>
+    <tr><th>Terms</th><td>${escapeHtml(data.invoice.customer.terms)}</td></tr>
+    <tr><th>Date</th><td>${escapeHtml(data.invoice.date)}</td></tr>
+  `;
+
+  const totals = document.getElementById('invoiceTotals');
+  totals.innerHTML = `
+    <div>Subtotal: PHP ${data.invoice.subtotal.toFixed(2)}</div>
+    <div>VAT (${(data.invoice.vatRate * 100).toFixed(0)}%): PHP ${data.invoice.vat.toFixed(2)}</div>
+    <div class="grand">Total: PHP ${data.invoice.total.toFixed(2)}</div>
+  `;
+
+  document.getElementById('emailPreview').textContent = data.draftEmail;
+}
+
+function escapeHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+</script>
+
+</body>
+</html>

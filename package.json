@@ -1,0 +1,14 @@
+{
+  "name": "ai-back-office-employee",
+  "version": "1.0.0",
+  "description": "Demo: AI employee that processes purchase orders end-to-end (extract, check inventory, draft invoice, draft customer email)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

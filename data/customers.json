@@ -1,0 +1,5 @@
+[
+  { "name": "Meridian Hardware & Supply", "email": "purchasing@meridianhardware.example", "terms": "Net 30" },
+  { "name": "Coastal Builders Co.", "email": "orders@coastalbuilders.example", "terms": "Net 15" },
+  { "name": "Summit Construction Group", "email": "procurement@summitconstruction.example", "terms": "Net 30" }
+]

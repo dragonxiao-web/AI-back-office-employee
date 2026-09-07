@@ -1,0 +1,12 @@
+[
+  { "sku": "STL-PIPE-2IN", "description": "Steel Pipe 2\" x 6m", "unit": "pc", "unitPrice": 850.00, "qtyOnHand": 120 },
+  { "sku": "STL-PIPE-4IN", "description": "Steel Pipe 4\" x 6m", "unit": "pc", "unitPrice": 1650.00, "qtyOnHand": 40 },
+  { "sku": "CEM-40KG", "description": "Portland Cement 40kg Bag", "unit": "bag", "unitPrice": 245.00, "qtyOnHand": 500 },
+  { "sku": "PLY-1/2-4X8", "description": "Marine Plywood 1/2\" 4x8ft", "unit": "sheet", "unitPrice": 980.00, "qtyOnHand": 15 },
+  { "sku": "GI-SHEET-26G", "description": "GI Sheet 26 Gauge 4x8ft", "unit": "sheet", "unitPrice": 720.00, "qtyOnHand": 60 },
+  { "sku": "WIRE-THHN-14", "description": "THHN Wire #14 (100m roll)", "unit": "roll", "unitPrice": 3200.00, "qtyOnHand": 25 },
+  { "sku": "PVC-4IN-3M", "description": "PVC Pipe 4\" x 3m", "unit": "pc", "unitPrice": 410.00, "qtyOnHand": 200 },
+  { "sku": "NAIL-CW-1KG", "description": "Common Wire Nails 1kg", "unit": "kg", "unitPrice": 95.00, "qtyOnHand": 8 },
+  { "sku": "PAINT-LAT-4L", "description": "Latex Paint 4L (White)", "unit": "pail", "unitPrice": 1150.00, "qtyOnHand": 30 },
+  { "sku": "REBAR-10MM", "description": "Deformed Rebar 10mm x 6m", "unit": "pc", "unitPrice": 265.00, "qtyOnHand": 300 }
+]

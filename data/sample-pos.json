@@ -1,0 +1,14 @@
+[
+  {
+    "label": "Clean PO — Meridian Hardware",
+    "text": "From: purchasing@meridianhardware.example\nSubject: Purchase Order #PO-10231\n\nHi,\n\nPlease process the following order for Meridian Hardware & Supply, to be delivered to our Quezon City warehouse.\n\nPO Number: PO-10231\nItems:\n1. Steel Pipe 2\" x 6m - 50 pcs\n2. Portland Cement 40kg - 100 bags\n3. THHN Wire #14 (100m roll) - 10 rolls\n\nPlease confirm availability and send invoice.\n\nThanks,\nRicardo Cruz\nMeridian Hardware & Supply"
+  },
+  {
+    "label": "PO with a stock shortfall — Coastal Builders",
+    "text": "From: orders@coastalbuilders.example\nSubject: PO-88410 - Urgent\n\nGood day,\n\nWe'd like to place an order for the following, PO-88410:\n\n- Marine Plywood 1/2\" 4x8ft x 40 sheets\n- Common Wire Nails 1kg x 20 kg\n- GI Sheet 26 Gauge 4x8ft x 25 sheets\n\nNeeded by end of week for the Coastal Builders Co. site.\n\nRegards,\nJenny Alvarez"
+  },
+  {
+    "label": "Messy PO with an unknown item — Summit Construction",
+    "text": "Summit Construction Group here, procurement@summitconstruction.example\n\nplease supply below for our ongoing project (ref: SUM-2231):\n\nrebar 10mm - 200pcs\npvc pipe 4in x3m - 60 pieces\nsolar panel 400w - 5 units\nlatex paint 4l white - 8 pails\n\nsend so we can process payment on our end (30 days terms)"
+  }
+]

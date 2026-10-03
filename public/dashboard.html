@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Dashboard — AI Back-Office Employee</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #e2e5ea;
+    --text: #1a1d23;
+    --muted: #6b7280;
+    --accent: #2f6fed;
+    --accent-dark: #1f4fc4;
+    --accent-bg: #eaf0fe;
+    --ok: #1a8a4a;
+    --ok-bg: #e8f7ee;
+    --warn: #b5760a;
+    --warn-bg: #fff4e0;
+    --bad: #c0362c;
+    --bad-bg: #fdecea;
+    --row-hover: #f8f9fb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  nav { display: flex; gap: 4px; }
+  nav a {
+    padding: 8px 14px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  nav a:hover { color: var(--text); background: var(--row-hover); }
+  nav a.active { color: var(--accent); background: var(--accent-bg); }
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px 32px 64px; display: flex; flex-direction: column; gap: 20px; }
+
+  .stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat .num { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .stat.attention { border-color: #f1c98a; background: var(--warn-bg); }
+  .stat.attention .num { color: var(--warn); }
+  .stat .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; align-items: start; }
+  .layout > * { min-width: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+  .queue-head { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); }
+  .queue-head h2, .section-title {
+    margin: 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .filters { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .filter {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .filter:hover { border-color: var(--accent); }
+  .filter.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .filter .count { opacity: 0.75; margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+  .queue-list { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow-y: auto; }
+  .queue-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid transparent;
+    padding: 12px 16px 12px 13px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .queue-item:hover { background: var(--row-hover); }
+  .queue-item.selected { background: var(--accent-bg); border-left-color: var(--accent); }
+  .queue-item .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .queue-item .po { font-weight: 600; }
+  .queue-item .cust { color: var(--text); margin-top: 2px; }
+  .queue-item .meta { color: var(--muted); font-size: 12px; margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+  .queue-empty { padding: 24px 16px; color: var(--muted); font-size: 13px; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill.needs_review { background: var(--warn-bg); color: var(--warn); }
+  .pill.ready { background: var(--accent-bg); color: var(--accent-dark); }
+  .pill.sent { background: var(--ok-bg); color: var(--ok); }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.muted { background: #eef0f3; color: var(--muted); }
+  .tag-sample { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+
+  .detail { padding: 0; min-height: 320px; }
+  .detail-empty { padding: 48px 24px; color: var(--muted); text-align: center; }
+  .d-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .d-head h2 { margin: 0; font-size: 20px; }
+  .d-head .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .d-section { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .d-section:last-child { border-bottom: none; }
+  .section-title { margin-bottom: 12px; }
+
+  .banner { margin: 16px 24px 0; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+  .banner.ok { background: var(--ok-bg); color: var(--ok); }
+  .banner.clear { background: var(--ok-bg); color: var(--ok); margin: 0; }
+
+  .decisions { display: flex; flex-direction: column; gap: 10px; }
+  .decision {
+    border: 1px solid #f1c98a;
+    background: var(--warn-bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .decision .msg { color: #6b4304; font-size: 13px; line-height: 1.45; }
+  .decision .controls { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  .decision details { margin-top: 10px; }
+  .decision summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--accent-dark); }
+
+  button.btn, select, input[type=text], input[type=email], input[type=number], textarea { font-family: inherit; font-size: 13px; }
+  button.btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  button.btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.btn.primary:hover { background: var(--accent-dark); }
+  button.btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+  button.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.btn:disabled:hover { border-color: var(--border); color: var(--text); }
+  button.btn.primary:disabled:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  select, input[type=text], input[type=email], input[type=number] {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 9px;
+    background: #fff;
+    color: var(--text);
+    max-width: 100%;
+  }
+  select:focus, input:focus, textarea:focus, button:focus-visible, .queue-item:focus-visible, .filter:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .new-cust { display: grid; grid-template-columns: 1fr 1fr 120px auto; gap: 8px; margin-top: 8px; align-items: center; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td .raw { color: var(--muted); font-size: 12px; }
+  td .note { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  tr.removed td { opacity: 0.55; }
+  tr.removed .desc { text-decoration: line-through; }
+  input.qty { width: 74px; text-align: right; }
+  .mono { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12px; }
+
+  .totals { margin-top: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+  .totals div { margin-bottom: 3px; }
+  .totals .grand { font-size: 17px; font-weight: 700; margin-top: 6px; }
+
+  textarea.email {
+    width: 100%;
+    min-height: 280px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    background: #fbfbfc;
+    color: var(--text);
+  }
+  .actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  .actions .hint { color: var(--muted); font-size: 12px; }
+  pre.raw-email { white-space: pre-wrap; margin: 10px 0 0; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12.5px; background: #fbfbfc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; line-height: 1.5; }
+  details.d-section summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+  ul.history { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  ul.history li { display: grid; grid-template-columns: 110px 54px 1fr; gap: 8px; font-size: 12.5px; }
+  ul.history .when { color: var(--muted); font-variant-numeric: tabular-nums; }
+  ul.history .by { font-weight: 600; }
+  .foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+  .foot button { background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 12px; font-family: inherit; padding: 0; }
+  .foot button:hover { color: var(--bad); }
+
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1d23;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    max-width: 90vw;
+    display: none;
+    z-index: 10;
+  }
+  #toast.show { display: block; }
+  #toast.error { background: var(--bad); }
+
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .queue-list { max-height: 320px; }
+    .new-cust { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    header, .container { padding-left: 16px; padding-right: 16px; }
+    ul.history li { grid-template-columns: 1fr; gap: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>AI Back-Office Employee</h1>
+    <p>Staff dashboard — the AI handles the orders; you handle the exceptions.</p>
+  </div>
+  <nav>
+    <a href="/">PO Desk</a>
+    <a href="/dashboard.html" class="active">Staff Dashboard</a>
+  </nav>
+</header>
+
+<div class="container">
+  <section class="stats" id="stats"></section>
+
+  <div class="layout">
+    <aside class="panel">
+      <div class="queue-head">
+        <h2>Order queue</h2>
+        <div class="filters" id="filters"></div>
+      </div>
+      <ul class="queue-list" id="queueList"></ul>
+    </aside>
+
+    <main class="panel detail" id="detail">
+      <div class="detail-empty">Loading orders…</div>
+    </main>
+  </div>
+
+  <div class="foot">
+    <span id="assumptions"></span>
+    <span>Orders tagged SAMPLE are example data. <button type="button" id="resetBtn">Reset demo data</button></span>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+const state = { orders: [], stats: null, selectedId: null, order: null, filter: 'needs_review', inventory: [], customers: [] };
+
+const FILTERS = [
+  { key: 'needs_review', label: 'Needs review' },
+  { key: 'ready', label: 'Ready to send' },
+  { key: 'sent', label: 'Sent' },
+  { key: 'all', label: 'All' }
+];
+const STATUS_LABEL = { needs_review: 'Needs review', ready: 'Ready to send', sent: 'Sent' };
+
+const money = n => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = s => String(s === undefined || s === null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function timeAgo(iso) {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs + ' hr ago';
+  const days = Math.round(hrs / 24);
+  return days + (days === 1 ? ' day ago' : ' days ago');
+}
+function clock(iso) {
+  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+let toastTimer;
+function toast(msg, isError) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, isError ? 5000 : 3200);
+}
+
+async function api(path, opts) {
+  const res = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Request failed.');
+  return data;
+}
+const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body || {}) });
+
+async function refreshList() {
+  const [orders, stats] = await Promise.all([api('/api/orders'), api('/api/stats')]);
+  state.orders = orders;
+  state.stats = stats;
+  renderStats();
+  renderFilters();
+  renderQueue();
+}
+
+async function selectOrder(id) {
+  state.selectedId = id;
+  history.replaceState(null, '', '#' + id);
+  renderQueue();
+  try {
+    state.order = await api('/api/orders/' + encodeURIComponent(id));
+  } catch (err) {
+    state.order = null;
+    toast(err.message, true);
+  }
+  renderDetail();
+}
+
+function renderStats() {
+  const s = state.stats;
+  if (!s) return;
+  const el = document.getElementById('stats');
+  el.innerHTML = `
+    <div class="stat ${s.needsReview > 0 ? 'attention' : ''}"><div class="num">${s.needsReview}</div><div class="label">Need your review</div></div>
+    <div class="stat"><div class="num">${s.ready}</div><div class="label">Ready to send</div></div>
+    <div class="stat"><div class="num">${s.sent}</div><div class="label">Sent</div></div>
+    <div class="stat"><div class="num">${s.untouched}<span style="font-size:15px;color:var(--muted);font-weight:500"> of ${s.total}</span></div><div class="label">Had no exceptions at all</div></div>
+    <div class="stat"><div class="num">${s.hoursSaved}<span style="font-size:15px;color:var(--muted);font-weight:500"> hrs</span></div><div class="label">Estimated time saved</div></div>`;
+  document.getElementById('assumptions').textContent =
+    `Time saved assumes ${s.assumptions.manualMinutesPerPO} min per PO by hand vs ${s.assumptions.staffMinutesUntouched}–${s.assumptions.staffMinutesWithExceptions} min of staff review.`;
+}
+
+function renderFilters() {
+  const counts = { all: state.orders.length };
+  state.orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
+  document.getElementById('filters').innerHTML = FILTERS.map(f =>
+    `<button type="button" class="filter ${state.filter === f.key ? 'active' : ''}" data-filter="${f.key}">${f.label}<span class="count">${counts[f.key] || 0}</span></button>`
+  ).join('');
+}
+
+function renderQueue() {
+  const list = state.orders.filter(o => state.filter === 'all' || o.status === state.filter);
+  const el = document.getElementById('queueList');
+  if (!list.length) {
+    el.innerHTML = `<li class="queue-empty">${state.filter === 'needs_review' ? 'Nothing needs review right now.' : 'No orders here yet.'}</li>`;
+    return;
+  }
+  el.innerHTML = list.map(o => `
+    <li><button type="button" class="queue-item ${o.id === state.selectedId ? 'selected' : ''}" data-id="${esc(o.id)}">
+      <div class="top"><span class="po">${esc(o.poNumber)}</span><span class="pill ${o.status}">${STATUS_LABEL[o.status]}</span></div>
+      <div class="cust">${esc(o.customerName)}</div>
+      <div class="meta"><span>${timeAgo(o.createdAt)}</span><span>·</span><span>PHP ${money(o.total)}</span>${o.exceptionCount ? `<span>·</span><span style="color:var(--warn);font-weight:600">${o.exceptionCount} to resolve</span>` : ''}${o.sample ? '<span class="tag-sample">sample</span>' : ''}</div>
+    </button></li>`).join('');
+}
+
+function lineStatusPill(l) {
+  switch (l.status) {
+    case 'ok': return '<span class="pill ok">OK</span>';
+    case 'partial': return '<span class="pill warn">Partial ship</span>';
+    case 'backordered': return '<span class="pill warn">Backordered</span>';
+    case 'insufficient_stock': return '<span class="pill bad">Low stock</span>';
+    case 'removed': return '<span class="pill muted">Removed</span>';
+    default: return '<span class="pill bad">Needs match</span>';
+  }
+}
+
+function lineNote(l) {
+  if (l.status === 'partial') return `Ship ${l.shipQty} now · backorder ${l.backorderQty}`;
+  if (l.status === 'backordered') return `Backorder all ${l.backorderQty}`;
+  if (l.status === 'insufficient_stock') return `Only ${l.qtyOnHand} on hand`;
+  return '';
+}
+
+function decisionCard(order, ex) {
+  const l = ex.lineIndex !== undefined ? order.lines[ex.lineIndex] : null;
+  const i = ex.lineIndex;
+  let controls = '';
+  let extra = '';
+  if (ex.type === 'unrecognized_item') {
+    const options = state.inventory.map(r =>
+      `<option value="${esc(r.sku)}" ${l.matchedSku === r.sku ? 'selected' : ''}>${esc(r.description)} — ${esc(r.sku)} (${r.qtyOnHand} in stock)</option>`).join('');
+    controls = `
+      <select data-pick="${i}" aria-label="Catalog item for line ${i + 1}">
+        <option value="">Choose the right catalog item…</option>${options}
+      </select>
+      <button type="button" class="btn primary" data-action="match" data-index="${i}">Match item</button>
+      <button type="button" class="btn danger" data-action="remove" data-index="${i}">Remove line</button>`;
+  } else if (ex.type === 'insufficient_stock') {
+    controls = `
+      <button type="button" class="btn primary" data-action="stock" data-res="ship_available" data-index="${i}">Ship ${l.qtyOnHand} now, backorder ${l.quantity - l.qtyOnHand}</button>
+      <button type="button" class="btn" data-action="stock" data-res="backorder_all" data-index="${i}">Backorder all ${l.quantity}</button>
+      <button type="button" class="btn danger" data-action="remove" data-index="${i}">Remove line</button>`;
+  } else if (ex.type === 'unknown_customer') {
+    const options = state.customers.map(c => `<option value="${esc(c.name)}">${esc(c.name)} — ${esc(c.email)}</option>`).join('');
+    controls = `
+      <select data-customer-pick aria-label="Existing customer">
+        <option value="">Assign to an existing customer…</option>${options}
+      </select>
+      <button type="button" class="btn primary" data-action="assign-customer">Assign</button>`;
+    extra = `
+      <details open>
+        <summary>…or add them as a new customer</summary>
+        <div class="new-cust">
+          <input type="text" id="newCustName" placeholder="Company name" value="${esc(order.customerNameGuess)}" aria-label="New customer name">
+          <input type="email" id="newCustEmail" placeholder="Email" value="${esc(order.customerEmailGuess)}" aria-label="New customer email">
+          <select id="newCustTerms" aria-label="Payment terms"><option>Net 30</option><option>Net 15</option><option>COD</option></select>
+          <button type="button" class="btn primary" data-action="add-customer">Add customer</button>
+        </div>
+      </details>`;
+  }
+  const title = l ? `<strong>Line ${i + 1}</strong> · ` : '';
+  return `<div class="decision"><div class="msg">${title}${esc(ex.message)}</div><div class="controls">${controls}</div>${extra}</div>`;
+}
+
+function renderDetail() {
+  const el = document.getElementById('detail');
+  const o = state.order;
+  if (!o) {
+    el.innerHTML = '<div class="detail-empty">Select an order from the queue.</div>';
+    return;
+  }
+  const sent = o.status === 'sent';
+  const inv = o.invoice;
+
+  const decisions = o.exceptions.length
+    ? `<div class="decisions">${o.exceptions.map(ex => decisionCard(o, ex)).join('')}</div>`
+    : `<div class="banner clear">${sent ? 'Everything was resolved before this order went out.' : 'Nothing needs a decision. Check the reply below and send it.'}</div>`;
+
+  const rows = o.lines.map((l, i) => {
+    const editable = !sent && l.status !== 'removed';
+    const qtyCell = editable
+      ? `<input type="number" class="qty" min="1" step="any" value="${l.quantity}" data-qty="${i}" aria-label="Quantity for line ${i + 1}"> <span class="raw">${esc(l.unit)}</span>`
+      : `${l.quantity} ${esc(l.unit)}`;
+    const restore = (!sent && l.status === 'removed')
+      ? `<button type="button" class="btn" data-action="restore" data-index="${i}">Restore</button>` : '';
+    return `
+      <tr class="${l.status === 'removed' ? 'removed' : ''}">
+        <td><div class="desc"><strong>${esc(l.catalogDescription || l.description)}</strong></div><div class="raw">“${esc(l.rawText)}”</div>${lineNote(l) ? `<div class="note">${esc(lineNote(l))}</div>` : ''}</td>
+        <td>${qtyCell}</td>
+        <td class="mono">${l.matchedSku && l.status !== 'unrecognized' ? esc(l.matchedSku) : '—'}${l.matchConfidence === 'manual' ? '<div class="note" style="font-family:inherit">matched by staff</div>' : ''}</td>
+        <td>${lineStatusPill(l)} ${restore}</td>
+        <td class="num">${l.extendedPrice !== undefined ? 'PHP ' + money(l.extendedPrice) : '—'}</td>
+      </tr>`;
+  }).join('');
+
+  const emailBlock = `<textarea class="email" id="emailBody" ${sent ? 'readonly' : ''}>${esc(sent ? o.sentEmail : o.draftEmail)}</textarea>`;
+  const n = o.exceptions.length;
+  const actions = sent ? '' : `
+    <div class="actions">
+      <span class="hint">${n ? `Resolve ${n} flagged ${n === 1 ? 'item' : 'items'} to enable sending.` : 'Demo mode: marks the reply as sent, no real email leaves this app.'}</span>
+      <button type="button" class="btn primary" data-action="send" ${n ? 'disabled' : ''}>Approve &amp; send reply</button>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="d-head">
+      <div>
+        <h2>${esc(inv.poNumber)}</h2>
+        <div class="sub">${esc(inv.customer.name)} · ${esc(inv.customer.email || 'no email on file')} · ${esc(inv.customer.terms)}</div>
+        <div class="sub">${esc(o.id)} · ${esc(inv.invoiceNumber)} · received ${clock(o.createdAt)}${o.deliveryNotes ? ' · ' + esc(o.deliveryNotes) : ''}</div>
+      </div>
+      <span class="pill ${o.status}">${STATUS_LABEL[o.status]}</span>
+    </div>
+    ${sent ? `<div class="banner ok">Reply sent ${clock(o.sentAt)} (demo — no real email was sent).</div>` : ''}
+    <div class="d-section">
+      <div class="section-title">${n ? 'Needs your decision' : 'Review status'}</div>
+      ${decisions}
+    </div>
+    <div class="d-section">
+      <div class="section-title">Line items</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Item</th><th>Qty</th><th>Catalog SKU</th><th>Status</th><th class="num">Amount</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      <div class="totals">
+        <div>Subtotal: PHP ${money(inv.subtotal)}</div>
+        <div>VAT (${(inv.vatRate * 100).toFixed(0)}%): PHP ${money(inv.vat)}</div>
+        <div class="grand">Total: PHP ${money(inv.total)}</div>
+      </div>
+    </div>
+    <div class="d-section">
+      <div class="section-title">${sent ? 'Reply that was sent' : 'Reply to customer'}</div>
+      ${emailBlock}
+      ${actions}
+    </div>
+    <details class="d-section">
+      <summary>Original email</summary>
+      <pre class="raw-email">${esc(o.rawText)}</pre>
+    </details>
+    <details class="d-section">
+      <summary>Activity (${o.history.length})</summary>
+      <ul class="history">${o.history.map(h => `<li><span class="when">${clock(h.at)}</span><span class="by">${esc(h.by)}</span><span>${esc(h.text)}</span></li>`).join('')}</ul>
+    </details>`;
+}
+
+async function mutate(fn, successMsg) {
+  try {
+    state.order = await fn();
+    if (successMsg) toast(successMsg);
+    renderDetail();
+    await refreshList();
+    if (state.order && state.filter !== 'all' && state.order.status !== state.filter) {
+      state.filter = state.order.status;
+      renderFilters();
+      renderQueue();
+    }
+  } catch (err) {
+    toast(err.message, true);
+    if (state.selectedId) {
+      state.order = await api('/api/orders/' + encodeURIComponent(state.selectedId)).catch(() => state.order);
+      renderDetail();
+    }
+  }
+}
+
+document.getElementById('filters').addEventListener('click', e => {
+  const btn = e.target.closest('[data-filter]');
+  if (!btn) return;
+  state.filter = btn.dataset.filter;
+  renderFilters();
+  renderQueue();
+});
+
+document.getElementById('queueList').addEventListener('click', e => {
+  const btn = e.target.closest('[data-id]');
+  if (btn) selectOrder(btn.dataset.id);
+});
+
+const detailEl = document.getElementById('detail');
+detailEl.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn || !state.order) return;
+  const id = state.order.id;
+  const idx = btn.dataset.index;
+  const line = path => post('/api/orders/' + id + '/lines/' + idx, path);
+
+  switch (btn.dataset.action) {
+    case 'match': {
+      const sku = detailEl.querySelector(`[data-pick="${idx}"]`).value;
+      if (!sku) return toast('Choose a catalog item first.', true);
+      mutate(() => line({ sku }), 'Item matched.');
+      break;
+    }
+    case 'stock':
+      mutate(() => line({ stockResolution: btn.dataset.res }), 'Decision saved.');
+      break;
+    case 'remove':
+      mutate(() => line({ removed: true }), 'Line removed from the order.');
+      break;
+    case 'restore':
+      mutate(() => line({ removed: false }), 'Line restored.');
+      break;
+    case 'assign-customer': {
+      const existing = detailEl.querySelector('[data-customer-pick]').value;
+      if (!existing) return toast('Choose a customer first.', true);
+      mutate(() => post('/api/orders/' + id + '/customer', { existing }), 'Customer assigned.');
+      break;
+    }
+    case 'add-customer':
+      mutate(async () => {
+        const order = await post('/api/orders/' + id + '/customer', {
+          new: {
+            name: document.getElementById('newCustName').value,
+            email: document.getElementById('newCustEmail').value,
+            terms: document.getElementById('newCustTerms').value
+          }
+        });
+        state.customers = await api('/api/customers');
+        return order;
+      }, 'New customer added.');
+      break;
+    case 'send':
+      mutate(() => post('/api/orders/' + id + '/send', { email: document.getElementById('emailBody').value }), 'Reply marked as sent (demo — nothing was emailed).');
+      break;
+  }
+});
+
+detailEl.addEventListener('change', e => {
+  const input = e.target.closest('[data-qty]');
+  if (!input || !state.order) return;
+  const id = state.order.id;
+  mutate(() => post('/api/orders/' + id + '/lines/' + input.dataset.qty, { quantity: input.value }), 'Quantity updated.');
+});
+
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if (!confirm('Reset the dashboard to the original sample orders? Any orders you processed will be removed.')) return;
+  try {
+    await post('/api/demo/reset');
+    state.customers = await api('/api/customers');
+    state.order = null;
+    state.selectedId = null;
+    await refreshList();
+    state.filter = state.stats.needsReview ? 'needs_review' : 'all';
+    renderFilters();
+    renderQueue();
+    pickInitial();
+    toast('Demo data reset.');
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
+function pickInitial() {
+  const wanted = location.hash.slice(1);
+  const target = state.orders.find(o => o.id === wanted)
+    || state.orders.find(o => o.status === 'needs_review')
+    || state.orders[0];
+  if (target) {
+    if (state.filter !== 'all' && target.status !== state.filter) state.filter = target.status;
+    renderFilters();
+    selectOrder(target.id);
+  } else {
+    renderDetail();
+  }
+}
+
+window.addEventListener('hashchange', () => {
+  const id = location.hash.slice(1);
+  if (id && id !== state.selectedId && state.orders.some(o => o.id === id)) selectOrder(id);
+});
+window.addEventListener('focus', () => refreshList().catch(() => {}));
+setInterval(() => { if (!document.hidden) refreshList().catch(() => {}); }, 10000);
+
+(async function init() {
+  try {
+    [state.inventory, state.customers] = await Promise.all([api('/api/inventory'), api('/api/customers')]);
+    await refreshList();
+    state.filter = state.stats.needsReview ? 'needs_review' : 'all';
+    pickInitial();
+  } catch (err) {
+    document.getElementById('detail').innerHTML = `<div class="detail-empty">Could not load orders: ${esc(err.message)}</div>`;
+  }
+})();
+</script>
+</body>
+</html>

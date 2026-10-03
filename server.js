@@ -3,16 +3,13 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
+const orders = require('./lib/orders');
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const inventory = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'inventory.json'), 'utf8'));
-const customers = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'customers.json'), 'utf8'));
 const samplePOs = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'sample-pos.json'), 'utf8'));
-
-const VAT_RATE = 0.12;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -58,17 +55,7 @@ const EXTRACT_TOOL = {
 };
 
 function buildCatalogText() {
-  return inventory.map(i => `${i.sku} :: ${i.description} (unit: ${i.unit})`).join('\n');
-}
-
-function matchCustomer(nameGuess, emailGuess) {
-  const emailDomain = (emailGuess || '').split('@')[1];
-  let match = customers.find(c => emailDomain && c.email.split('@')[1] === emailDomain);
-  if (!match && nameGuess) {
-    const lower = nameGuess.toLowerCase();
-    match = customers.find(c => c.name.toLowerCase().includes(lower) || lower.includes(c.name.toLowerCase().split(' ')[0]));
-  }
-  return match || null;
+  return orders.inventory.map(i => `${i.sku} :: ${i.description} (unit: ${i.unit})`).join('\n');
 }
 
 app.post('/api/process-po', async (req, res) => {
@@ -95,86 +82,17 @@ app.post('/api/process-po', async (req, res) => {
       return res.status(502).json({ error: 'AI did not return structured data. Try again.' });
     }
     const extracted = toolUse.input;
-
-    const exceptions = [];
-    const invoiceLines = [];
-
-    for (const item of extracted.lineItems) {
-      const invLine = {
-        rawText: item.rawText,
-        description: item.description,
-        quantity: item.quantity,
-        unit: item.unit,
-        matchedSku: item.matchedSku || null,
-        matchConfidence: item.matchConfidence,
-        status: 'ok'
-      };
-
-      if (!item.matchedSku || item.matchConfidence === 'none' || item.matchConfidence === 'low') {
-        invLine.status = 'unrecognized';
-        exceptions.push({
-          type: 'unrecognized_item',
-          message: `"${item.rawText}" could not be confidently matched to a catalog item — needs manual lookup.`
-        });
-      } else {
-        const invRecord = inventory.find(i => i.sku === item.matchedSku);
-        if (!invRecord) {
-          invLine.status = 'unrecognized';
-          exceptions.push({
-            type: 'unrecognized_item',
-            message: `AI referenced SKU "${item.matchedSku}" which isn't in the catalog — needs manual lookup.`
-          });
-        } else {
-          invLine.unitPrice = invRecord.unitPrice;
-          invLine.qtyOnHand = invRecord.qtyOnHand;
-          invLine.extendedPrice = round2(invRecord.unitPrice * item.quantity);
-          if (item.quantity > invRecord.qtyOnHand) {
-            invLine.status = 'insufficient_stock';
-            exceptions.push({
-              type: 'insufficient_stock',
-              message: `Only ${invRecord.qtyOnHand} ${invRecord.unit}(s) of "${invRecord.description}" in stock, but ${item.quantity} were ordered — needs manual decision (partial ship / backorder / substitute).`
-            });
-          }
-        }
-      }
-      invoiceLines.push(invLine);
-    }
-
-    const customer = matchCustomer(extracted.customerNameGuess, extracted.customerEmailGuess);
-    if (!customer) {
-      exceptions.push({
-        type: 'unknown_customer',
-        message: `Could not match "${extracted.customerNameGuess || '(no name found)'}" to an existing customer account — needs manual verification before invoicing.`
-      });
-    }
-
-    const billableLines = invoiceLines.filter(l => l.status === 'ok' || l.status === 'insufficient_stock');
-    const subtotal = round2(billableLines.reduce((sum, l) => sum + (l.extendedPrice || 0), 0));
-    const vat = round2(subtotal * VAT_RATE);
-    const total = round2(subtotal + vat);
-
-    const invoiceNumber = 'INV-' + Date.now().toString().slice(-8);
-    const invoice = {
-      invoiceNumber,
-      poNumber: extracted.poNumber || '(none provided)',
-      customer: customer || { name: extracted.customerNameGuess || 'Unknown customer', email: extracted.customerEmailGuess || '', terms: 'TBD — verify' },
-      lines: invoiceLines,
-      subtotal,
-      vat,
-      vatRate: VAT_RATE,
-      total,
-      date: new Date().toISOString().slice(0, 10)
-    };
-
-    const draftEmail = buildDraftEmail(invoice, exceptions);
+    const order = orders.createOrder(text, extracted);
 
     res.json({
+      id: order.id,
+      status: order.status,
       extracted,
-      invoice,
-      exceptions,
-      draftEmail,
-      autoProcessedCount: invoiceLines.filter(l => l.status === 'ok').length,
-      totalLineCount: invoiceLines.length
+      invoice: order.invoice,
+      exceptions: order.exceptions,
+      draftEmail: order.draftEmail,
+      autoProcessedCount: order.autoProcessedCount,
+      totalLineCount: order.totalLineCount
     });
   } catch (err) {
     console.error(err);
@@ -182,30 +100,39 @@ app.post('/api/process-po', async (req, res) => {
   }
 });
 
-function round2(n) {
-  return Math.round(n * 100) / 100;
+function handle(fn) {
+  return (req, res) => {
+    try {
+      res.json(fn(req));
+    } catch (err) {
+      if (err instanceof orders.OrderError) {
+        return res.status(err.status).json({ error: err.message });
+      }
+      console.error(err);
+      res.status(500).json({ error: 'Something went wrong.' });
+    }
+  };
 }
 
-function buildDraftEmail(invoice, exceptions) {
-  const okLines = invoice.lines.filter(l => l.status === 'ok' || l.status === 'insufficient_stock');
-  const itemRows = okLines.map(l =>
-    `  - ${l.description} x ${l.quantity} ${l.unit} @ PHP ${l.unitPrice.toFixed(2)} = PHP ${l.extendedPrice.toFixed(2)}${l.status === 'insufficient_stock' ? '  [PARTIAL/BACKORDER - see note]' : ''}`
-  ).join('\n');
+app.get('/api/orders', handle(() => orders.listOrders()));
+app.get('/api/stats', handle(() => orders.computeStats()));
+app.get('/api/inventory', handle(() => orders.inventory));
+app.get('/api/customers', handle(() => orders.allCustomers()));
+app.get('/api/orders/:id', handle(req => orders.getOrder(req.params.id)));
 
-  let body = `Subject: Invoice ${invoice.invoiceNumber} for PO ${invoice.poNumber}\n\n`;
-  body += `Hi ${invoice.customer.name},\n\n`;
-  body += `Thank you for your order. Here is a summary of what we can confirm so far:\n\n`;
-  body += itemRows + '\n\n';
-  body += `Subtotal: PHP ${invoice.subtotal.toFixed(2)}\n`;
-  body += `VAT (${(invoice.vatRate * 100).toFixed(0)}%): PHP ${invoice.vat.toFixed(2)}\n`;
-  body += `Total: PHP ${invoice.total.toFixed(2)}\n`;
-  body += `Terms: ${invoice.customer.terms}\n\n`;
-  if (exceptions.length > 0) {
-    body += `A couple of items on your order need a quick check from our team before we can finalize everything (see below) — someone will follow up shortly.\n\n`;
-  }
-  body += `Best regards,\n[Your Company Name]`;
-  return body;
-}
+app.post('/api/orders/:id/lines/:index', handle(req =>
+  orders.updateLine(req.params.id, Number(req.params.index), req.body || {})
+));
+app.post('/api/orders/:id/customer', handle(req =>
+  orders.setCustomer(req.params.id, req.body || {})
+));
+app.post('/api/orders/:id/send', handle(req =>
+  orders.sendOrder(req.params.id, (req.body || {}).email)
+));
+app.post('/api/demo/reset', handle(() => {
+  orders.seedOrders();
+  return { ok: true };
+}));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

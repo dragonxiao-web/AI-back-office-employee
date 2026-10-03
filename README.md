@@ -86,6 +86,18 @@ The system still drafts an invoice (₱97,216.00 total) and a reply email for th
 
 Two more scenarios are built in: a clean PO with zero exceptions, and a PO that hits an inventory shortfall (partial-ship/backorder flagged automatically).
 
+## Staff dashboard
+
+Every processed PO is saved to a queue that staff work from at `/dashboard.html`:
+
+- **Order queue** with status filters: Needs review, Ready to send, Sent
+- **Exceptions inbox:** for each flagged item, staff pick the right catalog item, choose ship-what's-on-hand vs backorder, adjust a quantity, remove a line, or assign/add the customer
+- **Live recalculation:** invoice totals and the draft reply update as each decision is made, and sending unlocks only when every flag is resolved
+- **Activity log** per order (what the AI did, what staff changed) and a summary strip with an estimated time-saved figure
+- Sending is simulated in this demo: the order is marked sent, but no real email leaves the app
+
+Orders persist to `data/orders.json` (gitignored). The dashboard opens pre-filled with six example orders, tagged SAMPLE; **Reset demo data** at the bottom restores them.
+
 ## Tech stack
 
 - Node.js + Express (backend, keeps the API key server-side)
@@ -95,8 +107,10 @@ Two more scenarios are built in: a clean PO with zero exceptions, and a PO that 
 ## Project structure
 
 ```
-server.js              Express server + extraction/invoice/exception logic
-public/index.html       UI
+server.js              Express server, Claude extraction call, API routes
+lib/orders.js           Order store + stock/invoice/exception logic
+public/index.html       PO desk (process one order)
+public/dashboard.html   Staff dashboard (queue, exceptions, approve & send)
 data/inventory.json     Mock product catalog
 data/customers.json     Mock customer directory
 data/sample-pos.json    Three example purchase orders (clean / shortfall / unknown item)
